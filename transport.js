@@ -48,11 +48,18 @@ export class WebBleTransport {
     this.onStatus({ kind: 'idle' });
   }
 
-  async write(bytes) {
-    const c = this.characteristic;
-    if (!c) return;
-    if (c.writeValueWithoutResponse) await c.writeValueWithoutResponse(bytes);
-    else await c.writeValue(bytes);
+  // Web Bluetooth rejects a write while the previous one is pending ("GATT operation already
+  // in progress"), which broke the claw slider. Writes are queued and run one at a time.
+  write(bytes) {
+    const run = async () => {
+      const c = this.characteristic;
+      if (!c) return;
+      if (c.writeValueWithoutResponse) await c.writeValueWithoutResponse(bytes);
+      else await c.writeValue(bytes);
+    };
+    const result = (this.queue ?? Promise.resolve()).then(run);
+    this.queue = result.catch(() => {});
+    return result;
   }
 
   async #open() {

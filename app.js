@@ -213,7 +213,11 @@ $('claw').oninput = (e) => {
   clawPending = level;
   if (!clawTimer) clawTimer = setTimeout(sendClaw, 80);
 };
-$('claw').onchange = (e) => addLog('out', `→ ${e.target.value}  «Захват ${e.target.value}/9»`);
+$('claw').onchange = (e) => {   // always send the final position when the finger lifts
+  if (!isConnected()) return;
+  transport.write(new Uint8Array([48 + Number(e.target.value)])).catch((err) => addLog('sys', `Помилка запису: ${err.message}`));
+  addLog('out', `→ ${e.target.value}  «Захват ${e.target.value}/9»`);
+};
 
 $('clear').onclick = () => { log.length = 0; $('log').replaceChildren(); };
 $('newSeries').onclick = () => {
