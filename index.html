@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#111111">
+<title>RoboCourier</title>
+<style>
+  :root { --bg:#f2f2f7; --card:#fff; --fg:#000; --muted:#8a8a8e; --green:#34c759; --blue:#0a84ff; --red:#ff3b30; --gray:#8e8e93; --orange:#ff9500; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#000; --card:#1c1c1e; --fg:#fff; } }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--fg); font: 17px/1.3 -apple-system, system-ui, sans-serif;
+         padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); display: flex; flex-direction: column; gap: 12px; }
+  h1 { font-size: 28px; margin: 16px 0 0; }
+  .card { background: var(--card); border-radius: 12px; padding: 14px; }
+  .muted { color: var(--muted); }
+  button { font: inherit; font-weight: 700; border: 0; border-radius: 12px; color: #fff; padding: 0 12px; min-height: 64px; width: 100%; touch-action: manipulation; }
+  button:disabled { opacity: .4; }
+  button.small { min-height: 36px; width: auto; padding: 0 12px; font-weight: 600; }
+  .start { background: var(--green); } .nav { background: var(--blue); } .recheck { background: var(--gray); min-height: 48px; }
+  .stop { background: var(--red); min-height: 96px; font-size: 32px; }
+  .primary { background: var(--blue); }
+  .banner { background: var(--red); color: #fff; font-weight: 700; font-size: 15px; border-radius: 10px; padding: 10px; }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--red); }
+  .dot.on { background: var(--green); }
+  .badge { margin-left: auto; background: var(--orange); color: #000; font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 99px; }
+  #log { flex: 1; min-height: 80px; overflow-y: auto; background: var(--card); border-radius: 8px; padding: 8px; font: 12px/1.4 ui-monospace, Menlo, monospace; white-space: pre-wrap; }
+  #log .out { color: var(--blue); } #log .sys { color: var(--muted); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <section id="connect" style="display:flex;flex-direction:column;gap:12px">
+    <h1>RoboCourier</h1>
+    <div class="card" id="connectStatus">Увімкніть робота і натисніть «Шукати робота».</div>
+    <div class="card" id="unsupported" hidden>
+      Цей браузер не підтримує Bluetooth. Встановіть безкоштовний браузер <b>Bluefy</b> з App Store і відкрийте цю сторінку в ньому.
+    </div>
+    <button id="scan" class="primary">Шукати робота</button>
+  </section>
+
+  <section id="control" hidden style="display:flex;flex-direction:column;gap:12px;flex:1;min-height:0">
+    <div>
+      <div class="row"><span class="dot" id="dot"></span><b id="deviceName"></b>
+        <span class="badge" id="paused" hidden>ПАУЗА</span>
+        <button id="disconnect" class="small" style="background:var(--gray);margin-left:auto">Від'єднатися</button></div>
+      <div id="mission" class="muted" style="font-size:20px">статус недоступний</div>
+    </div>
+    <div class="banner" id="banner" hidden></div>
+    <button class="start" data-cmd="start">▶ Старт</button>
+    <button class="nav" data-cmd="turn">↩ Розворот</button>
+    <button class="nav" data-cmd="returnHome">⌂ Повернення</button>
+    <button class="recheck" data-cmd="recheck">Перевірити колір</button>
+    <div class="row"><b>Журнал</b><span style="flex:1"></span>
+      <button class="small" id="share" style="background:var(--gray)">Поділитись</button>
+      <button class="small" id="clear" style="background:var(--gray)">Очистити</button></div>
+    <div id="log"></div>
+    <button class="stop" id="stop">■ СТОП</button>
+  </section>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
