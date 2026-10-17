@@ -196,6 +196,25 @@ $('disconnect').onclick = () => {
 document.querySelectorAll('[data-cmd]').forEach((b) => { b.onclick = () => send(b.dataset.cmd); });
 // STOP is never disabled: in a panic a tap must at least log "not connected".
 $('stop').onclick = () => send('stop');
+// Claw slider: sends one digit '0'..'9' (0 = open, 9 = closed) over Bluetooth, at most every 80 ms.
+let clawTimer = null;
+let clawPending = null;
+function sendClaw() {
+  clawTimer = null;
+  if (clawPending === null || !isConnected()) return;
+  const level = clawPending;
+  clawPending = null;
+  transport.write(new Uint8Array([48 + level])).catch((e) => addLog('sys', `Помилка запису: ${e.message}`));
+}
+$('claw').oninput = (e) => {
+  const level = Number(e.target.value);
+  $('clawValue').textContent = level === 0 ? 'відкритий' : level === 9 ? 'закритий' : `${level} / 9`;
+  if (!isConnected()) { addLog('sys', "Немає з'єднання — захват не керується"); return; }
+  clawPending = level;
+  if (!clawTimer) clawTimer = setTimeout(sendClaw, 80);
+};
+$('claw').onchange = (e) => addLog('out', `→ ${e.target.value}  «Захват ${e.target.value}/9»`);
+
 $('clear').onclick = () => { log.length = 0; $('log').replaceChildren(); };
 $('newSeries').onclick = () => {
   if (!confirm('Почати нову серію спроб? Лічильник спроб і таймер скинуться.')) return;
