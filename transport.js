@@ -90,12 +90,16 @@ export class WebBleTransport {
   }
 }
 
-/** Fake robot for desktop testing (open the page with ?mock). Answers like the phase 3 firmware. */
+/** Fake robot for desktop testing (open the page with ?mock). Plays the full mission like the firmware. */
 export class MockTransport {
   constructor() {
     this.onStatus = () => {};
     this.onData = () => {};
     this.connected = false;
+    this.state = 0;
+    this.paused = false;
+    this.timers = [];
+    this.wrongLeft = [];   // wrong colors still to be "placed" by the operator this run
   }
 
   connect() {
@@ -109,18 +113,82 @@ export class MockTransport {
 
   disconnect() {
     this.connected = false;
+    this.#cancel();
     this.onStatus({ kind: 'idle' });
   }
 
+  // Plays the whole mission like the firmware: two wrong colors first, the drawn one (red) last.
   async write(bytes) {
     if (!this.connected) return;
     const ch = String.fromCharCode(bytes[0]);
-    if (ch === 'X') {
-      this.#reply('START', 'state 1');
-      setTimeout(() => this.#reply('AT TERMINAL 2', 'state 2'), 2000);
-    } else if (ch === 'S') {
+    if (ch === 'S') {
+      this.#cancel();
+      this.paused = true;
       this.#reply('STOP');
+      return;
     }
+    const s = this.state;
+    if (ch === 'X' && (s === 0 || s === 10)) {
+      this.paused = false;
+      this.wrongLeft = ['BLUE', 'GREEN'];
+      this.#reply('START');
+      this.#go(1);
+      this.#after(2500, () => { this.#reply('AT TERMINAL 2'); this.#check(); });
+    } else if (ch === 'X' && s === 1 && this.paused) {
+      this.paused = false;
+      this.#reply('RESUME');
+      this.#after(1500, () => { this.#reply('AT TERMINAL 2'); this.#check(); });
+    } else if (ch === 'G' && (s === 2 || s === 3)) {
+      this.#cancel();
+      this.paused = false;
+      this.#reply('RECHECK');
+      this.#check();
+    } else if (ch === 'Y' && (s === 5 || (s === 6 && this.paused))) {
+      this.paused = false;
+      this.#reply(s === 5 ? 'TURN' : 'RESUME');
+      this.#go(6);
+      this.#after(1500, () => { this.#reply('TURNED'); this.#go(7); });
+    } else if (ch === 'U' && (s === 7 || ((s === 8 || s === 9) && this.paused))) {
+      this.paused = false;
+      this.#reply(s === 7 ? 'RETURN' : 'RESUME');
+      this.#go(8);
+      this.#after(2500, () => {
+        this.#reply('AT TERMINAL 1');
+        this.#go(9);
+        this.#after(2000, () => { this.#reply('DONE'); this.#go(10); });
+      });
+    }
+  }
+
+  #check() {
+    this.#go(2);
+    this.#after(1200, () => {
+      if (this.wrongLeft.length) {
+        this.#reply(`WRONG ${this.wrongLeft.shift()}`);
+        this.#go(3);
+        // The "operator" swaps the cylinder after 3 s.
+        this.#after(3000, () => { this.#reply('EMPTY'); });
+        this.#after(4000, () => { this.#reply('SWAP'); this.#check(); });
+      } else {
+        this.#reply('MATCH RED');
+        this.#go(4);
+        this.#after(1500, () => { this.#reply('GRABBED'); this.#go(5); });
+      }
+    });
+  }
+
+  #go(state) {
+    this.state = state;
+    this.#reply(`state ${state}`);
+  }
+
+  #after(ms, fn) {
+    this.timers.push(setTimeout(fn, ms));
+  }
+
+  #cancel() {
+    this.timers.forEach(clearTimeout);
+    this.timers = [];
   }
 
   /** Sends lines the way the HM-10 does: "\r\n" endings, 20-byte chunks. */
